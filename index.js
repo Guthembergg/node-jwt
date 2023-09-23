@@ -1,9 +1,21 @@
 const express = require("express");
+const mongoose = require("mongoose");
+require("dotenv").config();
+
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
 const jwt = require("jsonwebtoken");
 const session = require("express-session");
 const routes = require("./router/friends.js");
 
 let users = [];
+
+const userSchema = new mongoose.Schema({
+  password: String,
+  username: String,
+});
 
 const doesExist = (username) => {
   let userswithsamename = users.filter((user) => {
@@ -83,10 +95,15 @@ app.post("/login", (req, res) => {
 app.post("/register", (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
-
+  const User = mongoose.model("user", userSchema);
   if (username && password) {
     if (!doesExist(username)) {
-      users.push({ username: username, password: password });
+      const stud = new User({ username: username, password: password });
+
+      stud.save().then(
+        () => console.log("One entry added"),
+        (err) => console.log(err)
+      );
       return res
         .status(200)
         .json({ message: "User successfully registred. Now you can login" });
