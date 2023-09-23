@@ -1,8 +1,26 @@
 const express = require("express");
+const { Db } = require("mongodb");
 
+const mongoose = require("mongoose");
+require("dotenv").config();
+const uri =
+  "mongodb+srv://karim:karim@cluster0.tfy8kwa.mongodb.net/?retryWrites=true&w=majority";
+mongoose.connect(uri, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
 const router = express.Router();
+const Friends = mongoose.model(
+  "friends",
+  new mongoose.Schema({
+    firstName: String,
+    lastName: String,
+    email: String,
+    DOB: String,
+  })
+);
 
-let friends = {
+let friends2 = {
   "johnsmith@gamil.com": {
     firstName: "John",
     lastName: "Doe",
@@ -19,59 +37,82 @@ let friends = {
     DOB: "21-03-1989",
   },
 };
-
 // GET request: Retrieve all friends
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   // Update the code here
-  res.send(JSON.stringify(friends));
+  res.send(JSON.stringify(await Friends.find().exec()));
 });
 
 // GET by specific ID request: Retrieve a single friend with email ID
-router.get("/:email", (req, res) => {
-  const email = req.params.email;
-  res.send(friends[email]);
+router.get("/:firstName", async (req, res) => {
+  const name = req.params.firstName;
+  res.send(await Friends.find({ firstName: name }).exec());
 });
 
 // POST request: Add a new friend
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   if (req.body.email) {
-    friends[req.body.email] = {
+    const f = new Friends({
       firstName: req.body.firstName,
-      //Add similarly for lastName
-      //Add similarly for DOB
-    };
+      lastName: req.body.lastName,
+      email: req.body.email,
+      DOB: req.body.DOB,
+    });
+    const friendExist = await Friends.exists({
+      email: req.body.email,
+    }).exec();
+    if (!friendExist) {
+      f.save().then(
+        () => console.log("One friend entry added"),
+        (err) => console.log(err)
+      );
+
+      return res.status(200).json({
+        message: "Friend successfully registred",
+      });
+    } else {
+      return res.status(400).json({
+        message: "Friend already registred",
+      });
+    }
+  } else {
+    return res.status(400).json({
+      message: "Missing friend email",
+    });
   }
 });
 
 // PUT request: Update the details of a friend with email id
-router.put("/:email", (req, res) => {
-  const email = req.params.email;
-  let friend = friends[email];
-  if (friend) {
+router.put("/:firstName", async (req, res) => {
+  const name = req.params.firstName;
+  let friend2 = await Friends.find({ fistName: name }).exec();
+  if (friend2) {
     //Check is friend exists
     let DOB = req.body.DOB;
-    //Add similarly for firstName
-    //Add similarly for lastName
-    //if DOB the DOB has been changed, update the DOB
-    if (DOB) {
-      friend["DOB"] = DOB;
-    }
-    //Add similarly for firstName
-    //Add similarly for lastName
-    friends[email] = friend;
-    res.send(`Friend with the email  ${email} updated.`);
+    let firstName = req.body.firstName;
+    let lastname = req.body.lastname;
+    let email = req.body.email;
+    await Friends.updateOne({
+      email: email,
+      firstName: firstName,
+      lastName: lastname,
+      DOB: DOB,
+    });
+    res.status(200).send(`Friend with the name  ${firstName} updated.`);
   } else {
-    res.send("Unable to find friend!");
+    res.status(404).send("Unable to find friend!");
   }
 });
 
 // DELETE request: Delete a friend by email id
-router.delete("/:email", (req, res) => {
+router.delete("/:email", async (req, res) => {
   const email = req.params.email;
-  if (email) {
-    delete friends[email];
-  }
-  res.send(`Friend with the email  ${email} deleted.`);
+  rightFriend = await Friends.exists({ email: email }).exec();
+  if (email && rightFriend) {
+    await Friends.deleteOne({ email: email }).exec();
+    return res.status(200).send(`Friend with the email  ${email} deleted.`);
+  } else
+    res.status(404).send(`You don't have a friend with the email  ${email}.`);
 });
 
 module.exports = router;

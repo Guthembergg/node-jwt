@@ -1,43 +1,30 @@
 const express = require("express");
 const mongoose = require("mongoose");
 require("dotenv").config();
-
-mongoose.connect(process.env.MONGODB_URI, {
+const uri =
+  "mongodb+srv://karim:karim@cluster0.tfy8kwa.mongodb.net/?retryWrites=true&w=majority";
+mongoose.connect(uri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
+
 const jwt = require("jsonwebtoken");
 const session = require("express-session");
 const routes = require("./router/friends.js");
-
-let users = [];
-
-const userSchema = new mongoose.Schema({
-  password: String,
-  username: String,
+const MongoClient = require("mongodb").MongoClient;
+MongoClient.connect(uri).then((client) => {
+  console.log(`Connected to Database`);
+  const db = client.db("test");
+  db.mongoose = mongoose;
+  const tasksCollection = db.collection("users");
 });
-
-const doesExist = (username) => {
-  let userswithsamename = users.filter((user) => {
-    return user.username === username;
-  });
-  if (userswithsamename.length > 0) {
-    return true;
-  } else {
-    return false;
-  }
-};
-
-const authenticatedUser = (username, password) => {
-  let validusers = users.filter((user) => {
-    return user.username === username && user.password === password;
-  });
-  if (validusers.length > 0) {
-    return true;
-  } else {
-    return false;
-  }
-};
+const User = mongoose.model(
+  "users",
+  new mongoose.Schema({
+    username: String,
+    password: String,
+  })
+);
 
 const app = express();
 
@@ -63,15 +50,19 @@ app.use("/friends", function auth(req, res, next) {
   }
 });
 
-app.post("/login", (req, res) => {
+app.post("/login", async (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
 
   if (!username || !password) {
     return res.status(404).json({ message: "Error logging in" });
   }
-
-  if (authenticatedUser(username, password)) {
+  const user2 = await User.exists({
+    username: username,
+    password: password,
+  }).exec();
+  console.log(user2);
+  if (user2) {
     let accessToken = jwt.sign(
       {
         data: password,
@@ -84,7 +75,9 @@ app.post("/login", (req, res) => {
       accessToken,
       username,
     };
-    return res.status(200).send("User successfully logged in");
+    return res
+      .status(200)
+      .send("User successfully logged in, token: " + accessToken);
   } else {
     return res
       .status(208)
@@ -92,21 +85,24 @@ app.post("/login", (req, res) => {
   }
 });
 
-app.post("/register", (req, res) => {
+app.post("/register", async (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
-  const User = mongoose.model("user", userSchema);
+  const user2 = await User.exists({
+    username: username,
+  }).exec();
+  console.log(user2);
   if (username && password) {
-    if (!doesExist(username)) {
+    if (!user2) {
       const stud = new User({ username: username, password: password });
 
       stud.save().then(
         () => console.log("One entry added"),
         (err) => console.log(err)
       );
-      return res
-        .status(200)
-        .json({ message: "User successfully registred. Now you can login" });
+      return res.status(200).json({
+        message: "User successfully registred",
+      });
     } else {
       return res.status(404).json({ message: "User already exists!" });
     }
