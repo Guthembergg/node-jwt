@@ -171,6 +171,16 @@ router.post("/likes/:username", async (req, res) => {
         }
       );
 
+      await Person.updateOne(
+        {
+          posts: { _id: req.body.id },
+        },
+
+        {
+          $push: { posts: { likes: req.params.username } },
+        }
+      );
+
       return res.status(200).json({
         message: "Like successfully added ",
       });
