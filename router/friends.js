@@ -149,37 +149,65 @@ router.post("/likes/:username", async (req, res) => {
     username: req.params.username,
   }).exec();
 
-  const post = thisPerson[0].likes.filter((f) => f._id.equals(req.body.id));
-
-  if (post.length <= 0) {
+  const post = thisPerson[0]?.likes?.filter((f) => f._id.equals(req.body.id));
+  console.log(post);
+  if (post?.length <= 0 || post === undefined) {
     if (friendExist) {
-      const thePost = await Person.find(
+      const thePost = await Person.findOne(
         {
           posts: { $elemMatch: { _id: req.body.id } },
         },
         { posts: 1 }
       ).exec();
-      console.log(thePost);
 
-      await Person.updateOne(
-        { username: req.params.username },
+      const realPost = thePost.posts.filter((r) => r._id.equals(req.body.id));
+      const realPostWithoutLikesField = {
+        _id: realPost[0]._id,
+        text: realPost[0].text,
+        date: realPost[0].date,
+      };
+      console.log("here " + realPost);
+      console.log();
 
-        {
-          $push: {
-            likes: thePost[0].posts,
+      if (!thisPerson[0].likes.includes(realPostWithoutLikesField)) {
+        await Person.updateOne(
+          {
+            username: req.params.username,
           },
-        }
-      );
 
-      await Person.updateOne(
-        {
-          posts: { _id: req.body.id },
-        },
+          {
+            $push: {
+              likes: {
+                _id: realPost[0]._id,
+                text: realPost[0].text,
+                date: realPost[0].date,
+              },
+            },
+          }
+        );
+      } else {
+        return res.status(400).json({
+          message: "Post already liked ",
+        });
+      }
+      //
+      if (!realPost[0].likes.includes(req.params.username)) {
+        await Person.updateOne(
+          {
+            posts: { $elemMatch: { _id: req.body.id } },
+          },
 
-        {
-          $push: { posts: { likes: req.params.username } },
-        }
-      );
+          {
+            $push: {
+              "posts.$.likes": [req.params.username],
+            },
+          }
+        );
+      } else {
+        return res.status(400).json({
+          message: "Post already liked ",
+        });
+      }
 
       return res.status(200).json({
         message: "Like successfully added ",
