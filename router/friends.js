@@ -72,20 +72,35 @@ router.post("/", async (req, res) => {
 
 //POST request to add friends
 router.post("/friend/:username", async (req, res) => {
-  if (req.body.friends) {
+  if (req.body.username) {
     const friendExist = await Person.exists({
       username: req.params.username,
     }).exec();
+
+    const thisPersonExist = await Person.exists({
+      username: req.body.username,
+    }).exec();
+
     const thisPerson = await Person.find({
       username: req.params.username,
     }).exec();
+
+    const friend = await Person.find({
+      username: req.body.username,
+    }).exec();
     console.log(thisPerson);
-    if (!thisPerson[0].friends.includes(req.body.friends)) {
-      if (friendExist) {
+    if (!thisPerson[0].friends.includes(req.body.username)) {
+      if (friendExist && thisPersonExist) {
         await Person.updateOne(
           Person.find({ username: req.params.username }),
 
-          { $push: { friends: req.body.friends } }
+          { $push: { friends: req.body.username } }
+        );
+
+        await Person.updateOne(
+          Person.find({ username: req.body.username }),
+
+          { $push: { friends: req.params.username } }
         );
 
         return res.status(200).json({
