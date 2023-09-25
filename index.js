@@ -34,7 +34,7 @@ app.use(
 
 app.use(express.json());
 
-app.use("/friends", function auth(req, res, next) {
+app.use("/social", function auth(req, res, next) {
   if (req.session.authorization) {
     token = req.session.authorization["accessToken"];
     jwt.verify(token, "access", (err, user) => {
